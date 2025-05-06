@@ -291,8 +291,8 @@ function install_jdk(){
 		_java="$JAVA_HOME/bin/java"
 	else
 		default="Y"
-		echo -e "[-] To proceed further you have to install openjdk14 before installation\n"
-		read -p "[-] To install OpenJdk14 type [Y/n] " var
+		echo -e "[-] To proceed further you have to install openjdk 20.0.2 before installation\n"
+		read -p "[-] To install OpenJdk 20.0.2 type [Y/n] " var
 		#read -r var
 		input=${var:-$default}
 		temp=${input^^}
