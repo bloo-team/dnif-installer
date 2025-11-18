@@ -625,6 +625,7 @@ services:
    - NET_ADMIN
   volumes:
    - /DNIF/LC:/dnif/lc
+   - /DNIF/backup/lc:/backup
   container_name: console-v9">/DNIF/LC/docker-compose.yaml
 						cd /DNIF/LC || exit
 						echo -e "\n[-] Starting container... \n"
@@ -939,6 +940,7 @@ services:
    - NET_ADMIN
   volumes:
    - /DNIF/LC:/dnif/lc
+   - /DNIF/backup/lc:/backup
   container_name: console-v9">/DNIF/LC/podman-compose.yaml
 						echo -e "\n[-] Starting container... \n"
 						cd /DNIF/LC
