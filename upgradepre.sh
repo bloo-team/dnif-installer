@@ -3,15 +3,26 @@ set -e
 
 tag="v9.4.1"
 
+# Compose v2 (`docker compose`) where the node has it. Nodes installed before it only have the
+# standalone docker-compose 1.23.1, which Docker 29 refuses ("client version 1.24 is too old")
+# but older Docker still accepts, so fall back to it there.
+function compose_cmd() {
+	if docker compose version &> /dev/null; then
+		docker compose "$@"
+	else
+		docker-compose "$@"
+	fi
+}
+
 upgrade_docker_container () {
 	if [[ "$1" == "core-v9" ]]; then
         echo -e "\n[-] Bringing down the Docker Compose environment of $1 $2 & datanode-master-v9 $2\n"
 		if [ -e /DNIF/DL/docker-compose.yaml ]; then
 			cd /DNIF/DL/
-			docker-compose down
+			compose_cmd down
 		fi
 		cd /DNIF
-		docker-compose down
+		compose_cmd down
 		echo -e "\n[-] Docker container stopped and removed\n"
 		docker ps -a
 		echo -e "\n[-] Checking Docker Image for CORE & DATANODE $tag\n"
@@ -38,7 +49,7 @@ upgrade_docker_container () {
 	elif [[ "$1" == "console-v9" ]]; then
 		echo -e "\n[-] Bringing down the Docker Compose environment of $1 $2\n"
 		cd /DNIF/LC
-		docker-compose down
+		compose_cmd down
 		echo -e "\n[-] Docker container stopped and removed\n"
 		docker ps -a
 		echo -e "\n[-] Checking Docker Image for CONSOLE $tag\n"
@@ -55,7 +66,7 @@ upgrade_docker_container () {
 	elif [[ "$1" == "datanode-v9" ]]; then
 		echo -e "\n[-] Bringing down the Docker Compose environment of $1 $2\n"
 		cd /DNIF/DL
-		docker-compose down
+		compose_cmd down
 		echo -e "\n[-] Docker container stopped and removed\n"
 		docker ps -a
 		echo -e "\n[-] Checking Docker Image for DATANODE $tag\n"
@@ -72,7 +83,7 @@ upgrade_docker_container () {
 	elif [[ "$1" == "adapter-v9" ]]; then
 		echo -e "\n[-] Bringing down the Docker Compose environment of $1 $2\n"
 		cd /DNIF/AD
-		docker-compose down
+		compose_cmd down
 		echo -e "\n[-] Docker container stopped and removed\n"
 		docker ps -a
 		echo -e "\n[-] Checking Docker Image for ADAPTER $tag\n"
@@ -89,7 +100,7 @@ upgrade_docker_container () {
 	elif [[ "$1" == "pico-v9" ]]; then
 		echo -e "\n[-] Bringing down the Docker Compose environment of $1 $2\n"
 		cd /DNIF/PICO
-		docker-compose down
+		compose_cmd down
 		echo -e "\n[-] Docker container stopped and removed\n"
 		docker ps -a
 		echo -e "\n[-] Checking Docker Image for PICO $tag\n"
@@ -119,7 +130,7 @@ upgrade_docker_container () {
 					echo -e "[-] Bringing down the Docker Compose environment of $compose_container_name $mad_current_ver\n"
 					echo $path >> /DNIF/active_microad_path_upgradepre
 					cd $path
-					docker-compose down
+					compose_cmd down
 					echo -e "\n[-] Docker container stopped and removed for path: $path\n"
 					docker ps -a
 				fi
@@ -140,7 +151,7 @@ upgrade_docker_container () {
 		fi
 		echo -e "\n[-] Bringing down the Docker Compose environment of $1 $2\n"
 		cd /DNIF/EB
-		docker-compose down
+		compose_cmd down
 		echo -e "\n[-] Docker container stopped and removed\n"
 		docker ps -a
 		echo -e "\n[-] Checking Docker Image for EventBus $tag\n"

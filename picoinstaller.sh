@@ -1,55 +1,51 @@
 #!/bin/bash
 set -e
 
-function compose_check() {
-	if [ -x "$(command -v docker-compose)" ]; then
-		version=$(docker-compose --version |cut -d ' ' -f3 | cut -d ',' -f1)
-		if [[ "$version" != "1.23.1" ]]; then
-			echo -n "[-] Finding docker-compose installation - found incompatible version"
-			echo -e "... \e[0;31m[ERROR] \e[0m\n"
-			echo -e "[-] Updating docker-compose\n"
-			sudo curl -L "https://github.com/docker/compose/releases/download/1.23.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose &>> /DNIF/install.log
-			sudo chmod +x /usr/local/bin/docker-compose &>> /DNIF/install.log
-			echo -e "[-] Installing docker-compose - ... \e[1;32m[DONE] \e[0m\n"
-		else
-			echo -e "[-] docker-compose up-to-date\n"
-			echo -e "[-] Installing docker-compose - ... \e[1;32m[DONE] \e[0m\n"
-		fi
-	else
-		echo -e "[-] Finding docker-compose installation - ... \e[1;31m[NEGATIVE] \e[0m\n"
-		echo -e "[-] Installing docker-compose\n"
-		sudo curl -L "https://github.com/docker/compose/releases/download/1.23.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose &>> /DNIF/install.log
-		sudo chmod +x /usr/local/bin/docker-compose&>> /DNIF/install.log
-        echo -e "[-] Installing docker-compose - ... \e[1;32m[DONE] \e[0m\n"
+# Compose v2 (`docker compose`, the Docker CLI plugin). The standalone docker-compose 1.23.1 this
+# installer used to download speaks Docker API 1.24, which Docker 29 refuses with
+# "client version 1.24 is too old", so the containers never started.
+COMPOSE_VERSION="v5.5.1"
+
+function compose_plugin_download() {
+	# Fallback when the docker-compose-plugin package cannot be installed (e.g. Docker not from
+	# docker-ce): the same plugin from Compose's GitHub release.
+	# Never fails the installer by itself (set -e): compose_verify reports what is missing.
+	sudo mkdir -p /usr/local/lib/docker/cli-plugins
+	if sudo curl $1 -fL "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-linux-$(uname -m)" -o /usr/local/lib/docker/cli-plugins/docker-compose &>> /DNIF/install.log; then
+		sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose &>> /DNIF/install.log
 	fi
 }
 
-function compose_check_centos() {
-	if [ -x "$(command -v docker-compose)" ]; then
-		version=$(docker-compose --version |cut -d ' ' -f3 | cut -d ',' -f1)
-		if [[ "$version" != "1.23.1" ]]; then
-			echo -n "[-] Finding docker-compose installation - found incompatible version"
-			echo -e "... \e[0;31m[ERROR] \e[0m\n"
-			echo -e "[-] Updating docker-compose\n"
-			sudo curl -k -L "https://github.com/docker/compose/releases/download/1.23.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose &>> /DNIF/install.log
-			sudo chmod +x /usr/local/bin/docker-compose &>> /DNIF/install.log
-			echo -e "[-] Installing docker-compose - ... \e[1;32m[DONE] \e[0m\n"
-		else
-			echo -e "[-] docker-compose up-to-date\n"
-			echo -e "[-] Installing docker-compose - ... \e[1;32m[DONE] \e[0m\n"
-		fi
+function compose_verify() {
+	if docker compose version &>> /DNIF/install.log; then
+		echo -e "[-] Installing docker compose - ... \e[1;32m[DONE] \e[0m\n"
 	else
-		echo -e "[-] Finding docker-compose installation - ... \e[1;31m[NEGATIVE] \e[0m\n"
-		echo -e "[-] Installing docker-compose\n"
-		sudo curl -k -L "https://github.com/docker/compose/releases/download/1.23.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose &>> /DNIF/install.log
-		sudo chmod +x /usr/local/bin/docker-compose &>> /DNIF/install.log
-		filedc="/usr/bin/docker-compose"
-		if [ ! -f "$filedc " ]; then
-			sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose &>> /DNIF/install.log
-		fi
-    echo -e "[-] Installing docker-compose - ... \e[1;32m[DONE] \e[0m\n"
+		echo -e "[-] Installing docker compose - ... \e[0;31m[ERROR] \e[0m\n"
+		echo -e "[-] 'docker compose' is not available. Install the docker-compose-plugin package and run the installer again.\n"
+		exit 1
 	fi
+}
 
+function compose_check() {
+	if docker compose version &>> /DNIF/install.log; then
+		echo -e "[-] docker compose up-to-date\n"
+	else
+		echo -e "[-] Finding docker compose installation - ... \e[1;31m[NEGATIVE] \e[0m\n"
+		echo -e "[-] Installing docker compose\n"
+		sudo apt-get -y install docker-compose-plugin &>> /DNIF/install.log || compose_plugin_download
+	fi
+	compose_verify
+}
+
+function compose_check_centos() {
+	if docker compose version &>> /DNIF/install.log; then
+		echo -e "[-] docker compose up-to-date\n"
+	else
+		echo -e "[-] Finding docker compose installation - ... \e[1;31m[NEGATIVE] \e[0m\n"
+		echo -e "[-] Installing docker compose\n"
+		sudo yum install -y docker-compose-plugin &>> /DNIF/install.log || compose_plugin_download -k
+	fi
+	compose_verify
 }
 
 function docker_check() {
@@ -124,7 +120,7 @@ function docker_install() {
    stable"&>> /DNIF/install.log
 	sudo apt-get -y update&>> /DNIF/install.log
 	echo -e "[-] Installing docker-ce\n"
-	sudo apt-get -y install docker-ce docker-ce-cli containerd.io&>> /DNIF/install.log
+	sudo apt-get -y install docker-ce docker-ce-cli containerd.io docker-compose-plugin&>> /DNIF/install.log
 }
 
 function docker_install_centos() {
@@ -152,7 +148,7 @@ function docker_install_centos() {
 	if [ ! -f "$file3 " ]; then
 		yum install -y container-selinux&>> /DNIF/install.log
 	fi
-	sudo yum install -y docker-ce docker-ce-cli containerd.io&>> /DNIF/install.log
+	sudo yum install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin&>> /DNIF/install.log
 	sudo systemctl start docker&>> /DNIF/install.log
 	sudo systemctl enable docker.service&>> /DNIF/install.log
 }
@@ -386,7 +382,7 @@ services:
 				cd /DNIF/PICO || exit
 				IP=$(ip addr | grep 'state UP' -A2 | tail -n1 | awk '{print $2}' | cut -f1  -d'/')
 				echo -e "[-] Starting container...\n "
-				docker-compose up -d
+				docker compose up -d
 				echo -e "[-] Starting container ... \e[1;32m[DONE] \e[0m\n"
 				docker ps
 				echo -e "** Congratulations you have successfully installed the PICO\n"
